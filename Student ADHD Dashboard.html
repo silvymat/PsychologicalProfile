@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Student ADHD Dashboard</title>
+<style>
+:root{--bg:#f4f6fb;--card:#fff;--text:#1e2433;--muted:#5d667a;--line:#dfe3ee;--accent:#4a5fd6;--mild:#2e9e5b;--mod:#e09a1a;--high:#d64545;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12151f;--card:#1b2030;--text:#e8ebf5;--muted:#9aa3ba;--line:#2c3350;--accent:#8193ff;--mild:#4cc27f;--mod:#f0b13a;--high:#ff6b6b}}
+:root[data-theme="dark"]{--bg:#12151f;--card:#1b2030;--text:#e8ebf5;--muted:#9aa3ba;--line:#2c3350;--accent:#8193ff;--mild:#4cc27f;--mod:#f0b13a;--high:#ff6b6b}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.5}
+.wrap{max-width:1000px;margin:0 auto;padding:20px 16px 40px}
+header{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;align-items:center;margin-bottom:16px}
+h1{font-size:1.5rem;margin:0}h2{font-size:1.1rem;margin:0 0 10px}
+.sub{color:var(--muted);font-size:.9rem;margin:2px 0 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:700px){.grid{grid-template-columns:1fr}}
+input[type=text]{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text);font-size:1rem;width:100%;max-width:280px}
+.q{padding:10px 0;border-top:1px solid var(--line)}
+.q p{margin:0 0 6px;font-size:.95rem}
+.opts{display:flex;flex-wrap:wrap;gap:6px}
+.opts label{flex:1;min-width:70px}
+.opts input{position:absolute;opacity:0}
+.opts span{display:block;text-align:center;font-size:.8rem;padding:6px 4px;border:1px solid var(--line);border-radius:8px;cursor:pointer;background:var(--bg)}
+.opts input:checked+span{background:var(--accent);color:#fff;border-color:var(--accent)}
+.opts input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+button{font:inherit;padding:9px 16px;border-radius:9px;border:1px solid var(--accent);cursor:pointer}
+.primary{background:var(--accent);color:#fff}.ghost{background:transparent;color:var(--accent)}
+.row{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.badge{display:inline-block;padding:3px 12px;border-radius:99px;color:#fff;font-weight:600;font-size:.85rem}
+.big{font-size:2.2rem;font-weight:700;line-height:1}
+.bar{height:14px;border-radius:99px;background:var(--line);overflow:hidden;margin:10px 0 4px;position:relative}
+.bar i{display:block;height:100%;width:0;transition:width .6s}
+.scale{display:flex;justify-content:space-between;font-size:.72rem;color:var(--muted)}
+ul{margin:6px 0 0;padding-left:20px}li{margin-bottom:6px}
+.note{font-size:.8rem;color:var(--muted)}
+#results{display:none}
+.mild{--c:var(--mild)}.moderate{--c:var(--mod)}.high{--c:var(--high)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+ <div><h1>Student ADHD Dashboard</h1><p class="sub">Self-rating screening for inattentive and hyperactive/impulsive symptoms</p></div>
+</header>
+
+<div class="card">
+ <h2>Student</h2>
+ <input type="text" id="name" placeholder="Student name" aria-label="Student name">
+ <p class="note">Rate how often each statement applied to you over the <b>past 6 months</b>.</p>
+</div>
+
+<div class="grid">
+ <div class="card"><h2>Inattentive type</h2><div id="qa"></div></div>
+ <div class="card"><h2>Hyperactive/impulsive type</h2><div id="qh"></div></div>
+</div>
+
+<div class="row" style="margin:0 0 16px">
+ <button class="primary" id="calc">Calculate scores</button>
+ <button class="ghost" id="demo">Fill sample answers</button>
+ <button class="ghost" id="reset">Reset</button>
+</div>
+<p id="msg" class="note" role="alert"></p>
+
+<div id="results">
+ <h2 id="rtitle"></h2>
+ <div class="grid" id="scores"></div>
+ <div class="card"><h2>Overall profile</h2><p id="overall" style="margin:0"></p></div>
+ <div class="grid" id="tips"></div>
+ <p class="note">This is a self-report screening demo, not a medical diagnosis. Scores of 0–9 are classed mild, 10–18 moderate and 19–27 high (max 27 per subtype). If symptoms affect daily life, please consult a qualified doctor or psychologist.</p>
+</div>
+</div>
+
+<script>
+const OPTS=["Never","Rarely","Sometimes","Often"];
+const Q={
+ a:["Fail to give close attention to details or make careless mistakes in schoolwork.",
+    "Have difficulty sustaining attention in lectures, reading or homework.",
+    "Seem not to listen when spoken to directly.",
+    "Do not follow through on instructions and fail to finish assignments.",
+    "Have difficulty organizing tasks, notes and time.",
+    "Avoid or dislike tasks needing sustained mental effort.",
+    "Lose things needed for tasks (books, pens, phone, keys).",
+    "Am easily distracted by outside noise or unrelated thoughts.",
+    "Am forgetful in daily activities (deadlines, appointments)."],
+ h:["Fidget with hands or feet or squirm in the seat.",
+    "Leave my seat when expected to stay seated.",
+    "Feel restless or run/climb about when it is not appropriate.",
+    "Have trouble doing quiet activities calmly.",
+    "Feel “on the go” as if driven by a motor.",
+    "Talk excessively.",
+    "Blurt out answers before questions are finished.",
+    "Have difficulty waiting for my turn.",
+    "Interrupt or intrude on others’ conversations or games."]
+};
+const TIPS={
+ a:{t:"Tips for inattentive symptoms",l:[
+  "Break study time into 25-minute focus blocks with 5-minute breaks (Pomodoro).",
+  "Use a planner or phone reminders for deadlines; review it every evening.",
+  "Study in a quiet, clutter-free spot; keep the phone out of reach.",
+  "Split big assignments into small, written checklist steps.",
+  "Keep a fixed place for books and keys, and pack your bag the night before.",
+  "Ask teachers for written instructions and sit near the front of the class.",
+  "Sleep 8 hours, eat regular meals and exercise; these all improve focus."]},
+ h:{t:"Tips for hyperactive/impulsive symptoms",l:[
+  "Channel energy with daily exercise such as sport, cycling or yoga.",
+  "Use discreet movement: a fidget tool, standing desk or short walking breaks.",
+  "Pause and count to three before answering or acting.",
+  "Write down thoughts to share later instead of interrupting.",
+  "Practise deep breathing or mindfulness for 5 minutes a day.",
+  "Alternate active and quiet tasks during study sessions.",
+  "Reward yourself for calm, patient behaviour to build habits."]}
+};
+const EXTRA={mild:"Level is mild: small routine changes are often enough. Keep tracking your progress.",
+ moderate:"Level is moderate: combine these strategies with support from a teacher or counsellor.",
+ high:"Level is high: please also speak to a doctor or psychologist for a full assessment and support."};
+const COLORS={mild:"var(--mild)",moderate:"var(--mod)",high:"var(--high)"};
+const classify=s=>s<=9?"mild":s<=18?"moderate":"high";
+const $=id=>document.getElementById(id);
+
+function build(id,key){
+ $(id).innerHTML=Q[key].map((q,i)=>`<div class="q"><p>${i+1}. ${q}</p><div class="opts">`+
+  OPTS.map((o,v)=>`<label><input type="radio" name="${key}${i}" value="${v}"><span>${o}</span></label>`).join("")+`</div></div>`).join("");
+}
+build("qa","a");build("qh","h");
+
+function total(key){
+ let s=0,n=0;
+ Q[key].forEach((_,i)=>{const c=document.querySelector(`input[name="${key}${i}"]:checked`);if(c){s+=+c.value;n++}});
+ return {s,n};
+}
+function card(title,s){
+ const lv=classify(s),pct=Math.round(s/27*100);
+ return `<div class="card ${lv}"><h2>${title}</h2><div class="big">${s}<span class="note"> / 27</span></div>
+ <div style="margin:8px 0"><span class="badge" style="background:${COLORS[lv]}">${lv.toUpperCase()}</span></div>
+ <div class="bar" role="img" aria-label="${pct} percent"><i style="background:${COLORS[lv]}" data-w="${pct}"></i></div>
+ <div class="scale"><span>Mild 0–9</span><span>Moderate 10–18</span><span>High 19–27</span></div></div>`;
+}
+$("calc").onclick=()=>{
+ const a=total("a"),h=total("h");
+ if(a.n<9||h.n<9){$("msg").textContent=`Please answer all questions (${a.n+h.n} of 18 answered).`;return}
+ $("msg").textContent="";
+ const name=$("name").value.trim()||"Student";
+ $("rtitle").textContent=`Results for ${name}`;
+ $("scores").innerHTML=card("Inattentive score",a.s)+card("Hyperactive/impulsive score",h.s);
+ const la=classify(a.s),lh=classify(h.s);
+ let p;
+ if(a.s===h.s) p="Both subtypes score equally, which suggests a combined presentation.";
+ else p=(a.s>h.s?"Inattentive":"Hyperactive/impulsive")+" symptoms are stronger. ";
+ if(Math.abs(a.s-h.s)<=3&&a.s!==h.s) p="Both subtypes score at similar levels, which suggests a combined presentation.";
+ p+=` Inattentive: ${la}. Hyperactive/impulsive: ${lh}.`;
+ $("overall").textContent=p;
+ $("tips").innerHTML=[["a",la],["h",lh]].map(([k,lv])=>
+  `<div class="card ${lv}" style="border-top:4px solid ${COLORS[lv]}"><h2>${TIPS[k].t}</h2><p class="note" style="margin:0 0 6px">${EXTRA[lv]}</p><ul>${TIPS[k].l.map(t=>`<li>${t}</li>`).join("")}</ul></div>`).join("");
+ $("results").style.display="block";
+ requestAnimationFrame(()=>document.querySelectorAll(".bar i").forEach(e=>e.style.width=e.dataset.w+"%"));
+ $("results").scrollIntoView({behavior:"smooth"});
+};
+$("demo").onclick=()=>{
+ ["a","h"].forEach((k,ki)=>Q[k].forEach((_,i)=>{
+  const v=ki===0?[3,2,3,2,3,2,3,2,3][i]:[1,0,1,1,0,1,2,1,0][i];
+  document.querySelector(`input[name="${k}${i}"][value="${v}"]`).checked=true;
+ }));
+ $("name").value=$("name").value||"Sample Student";
+};
+$("reset").onclick=()=>{
+ document.querySelectorAll("input[type=radio]").forEach(r=>r.checked=false);
+ $("name").value="";$("msg").textContent="";$("results").style.display="none";
+ window.scrollTo({top:0,behavior:"smooth"});
+};
+</script>
+</body>
+</html>
